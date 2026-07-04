@@ -37,6 +37,83 @@
     padding: 8px;
     border-bottom: 1px solid #333;
   }
+
+  /* カレンダー */
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .cal-header button {
+    background: #262626;
+    color: #eee;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .cal-header button:hover {
+    background: #333;
+  }
+  .cal-title {
+    font-size: 15px;
+    font-weight: bold;
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-weekday {
+    text-align: center;
+    font-size: 11px;
+    color: #888;
+    padding-bottom: 4px;
+  }
+  .cal-cell {
+    height: 64px;
+    border-radius: 7px;
+    background: #1e1e1e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: #666;
+    position: relative;
+  }
+  .cal-cell.empty {
+    background: transparent;
+  }
+  .cal-cell .cal-day {
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .cal-cell .cal-steps {
+    font-size: 11px;
+  }
+  .cal-cell[data-level="0"] { background: #1e1e1e; color: #555; }
+  .cal-cell[data-level="1"] { background: #14532d; color: #d1fae5; }
+  .cal-cell[data-level="2"] { background: #16a34a; color: #ecfdf5; }
+  .cal-cell[data-level="3"] { background: #4ade80; color: #052e16; }
+  .cal-cell.today {
+    outline: 2px solid #60a5fa;
+  }
+  .heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: #888;
+  }
+  .heatmap-legend .cal-cell {
+    width: 14px;
+    height: 14px;
+    aspect-ratio: unset;
+  }
 </style>
 </head>
 <body>
@@ -46,6 +123,24 @@
 <div class="card">
   <h2>📈 歩数推移 & 7日移動平均</h2>
   <canvas id="stepsChart" height="100"></canvas>
+</div>
+
+<div class="card" style="max-width: 576px; margin-left: auto; margin-right: auto;">
+  <h2>🔥 歩数カレンダー</h2>
+  <div class="cal-header">
+    <button id="prevMonth">← 前の月</button>
+    <div class="cal-title" id="calTitle"></div>
+    <button id="nextMonth">次の月 →</button>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+  <div class="heatmap-legend">
+    <span>少ない</span>
+    <div class="cal-cell" data-level="0"></div>
+    <div class="cal-cell" data-level="1"></div>
+    <div class="cal-cell" data-level="2"></div>
+    <div class="cal-cell" data-level="3"></div>
+    <span>多い</span>
+  </div>
 </div>
 
 <div class="card">
@@ -60,6 +155,9 @@
 
 <script>
 const API_BASE = "";
+let allStepsData = {};
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth(); // 0-indexed
 
 async function fetchJSON(path) {
   const res = await fetch(API_BASE + path);
@@ -105,6 +203,86 @@ async function renderStepsChart() {
   });
 }
 
+function stepLevel(steps) {
+  if (!steps || steps === 0) return 0;
+  if (steps < 5000) return 1;
+  if (steps < 10000) return 2;
+  return 3;
+}
+
+function formatDateJST(y, m, d) {
+  const mm = String(m + 1).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
+}
+
+function renderCalendar() {
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+  const grid = document.getElementById("calGrid");
+  const title = document.getElementById("calTitle");
+  title.textContent = `${currentYear}年 ${currentMonth + 1}月`;
+
+  grid.innerHTML = "";
+  weekdays.forEach(w => {
+    const el = document.createElement("div");
+    el.className = "cal-weekday";
+    el.textContent = w;
+    grid.appendChild(el);
+  });
+
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  const lastDay = new Date(currentYear, currentMonth + 1, 0);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = lastDay.getDate();
+
+  const todayStr = formatDateJST(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+
+  for (let i = 0; i < startWeekday; i++) {
+    const el = document.createElement("div");
+    el.className = "cal-cell empty";
+    grid.appendChild(el);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = formatDateJST(currentYear, currentMonth, day);
+    const steps = allStepsData[dateStr] || 0;
+    const level = stepLevel(steps);
+
+    const cell = document.createElement("div");
+    cell.className = "cal-cell";
+    if (dateStr === todayStr) cell.classList.add("today");
+    cell.setAttribute("data-level", level);
+    cell.innerHTML = `<div class="cal-day">${day}</div>` +
+      (steps > 0 ? `<div class="cal-steps">${(steps / 1000).toFixed(1)}k</div>` : "");
+    grid.appendChild(cell);
+  }
+}
+
+async function renderCalendarSection() {
+  const data = await fetchJSON("/health-log");
+  allStepsData = {};
+  data.forEach(d => { allStepsData[d.date] = d.steps; });
+  renderCalendar();
+}
+
+document.getElementById("prevMonth").addEventListener("click", () => {
+  currentMonth--;
+  if (currentMonth < 0) {
+    currentMonth = 11;
+    currentYear--;
+  }
+  renderCalendar();
+});
+
+document.getElementById("nextMonth").addEventListener("click", () => {
+  currentMonth++;
+  if (currentMonth > 11) {
+    currentMonth = 0;
+    currentYear++;
+  }
+  renderCalendar();
+});
+
 async function renderStreakTable() {
   const data = await fetchJSON("/analytics/streaks");
   const tbody = document.querySelector("#streakTable tbody");
@@ -117,6 +295,7 @@ async function renderStreakTable() {
 }
 
 renderStepsChart();
+renderCalendarSection();
 renderStreakTable();
 </script>
 
