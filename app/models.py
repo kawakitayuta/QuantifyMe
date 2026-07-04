@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, Date
+from sqlalchemy import Column, Integer, Date
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -9,4 +9,3 @@ class HealthLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, unique=True, index=True, nullable=False)
     steps = Column(Integer, nullable=True)
-    sleep_hours = Column(Float, nullable=True)

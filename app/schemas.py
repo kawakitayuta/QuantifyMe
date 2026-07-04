@@ -5,7 +5,6 @@ from typing import Optional
 class HealthLogIn(BaseModel):
     date: date_type
     steps: Optional[int] = None
-    sleep_hours: Optional[float] = None
 
 class HealthLogOut(HealthLogIn):
     id: int
