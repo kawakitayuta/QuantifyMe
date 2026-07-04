@@ -6,8 +6,10 @@ from sqlalchemy import select
 from app.database import get_db, engine
 from app.models import Base, HealthLog
 from app.schemas import HealthLogIn, HealthLogOut
+from app.analytics import router as analytics_router
 
 app = FastAPI(title="QuantifyMe API")
+app.include_router(analytics_router)
 
 @app.on_event("startup")
 async def startup():
