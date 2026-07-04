@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select
@@ -10,6 +11,7 @@ from app.analytics import router as analytics_router
 
 app = FastAPI(title="QuantifyMe API")
 app.include_router(analytics_router)
+app.mount("/dashboard", StaticFiles(directory="static", html=True), name="static")
 
 @app.on_event("startup")
 async def startup():
@@ -18,10 +20,12 @@ async def startup():
 
 @app.post("/health-log", response_model=HealthLogOut)
 async def upsert_log(entry: HealthLogIn, db: AsyncSession = Depends(get_db)):
-    stmt = insert(HealthLog).values(**entry.model_dump())
+    data = entry.model_dump(exclude_unset=True)
+    stmt = insert(HealthLog).values(**data)
+    update_fields = {k: v for k, v in data.items() if k != "date"}
     stmt = stmt.on_conflict_do_update(
         index_elements=["date"],
-        set_={k: v for k, v in entry.model_dump().items() if k != "date"}
+        set_=update_fields
     ).returning(HealthLog)
     result = await db.execute(stmt)
     await db.commit()

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>QuantifyMe Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  body {
+    font-family: -apple-system, sans-serif;
+    background: #0f0f0f;
+    color: #eee;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  .card h2 {
+    font-size: 16px;
+    margin: 0 0 12px 0;
+    color: #aaa;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid #333;
+  }
+</style>
+</head>
+<body>
+
+<h1>📊 QuantifyMe Dashboard</h1>
+
+<div class="card">
+  <h2>📈 歩数推移 & 7日移動平均</h2>
+  <canvas id="stepsChart" height="100"></canvas>
+</div>
+
+<div class="card">
+  <h2>😴 睡眠時間推移</h2>
+  <canvas id="sleepChart" height="100"></canvas>
+</div>
+
+<div class="card">
+  <h2>🔥 1万歩ストリーク</h2>
+  <table id="streakTable">
+    <thead>
+      <tr><th>開始日</th><th>終了日</th><th>連続日数</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+const API_BASE = "";
+
+async function fetchJSON(path) {
+  const res = await fetch(API_BASE + path);
+  return res.json();
+}
+
+async function renderStepsChart() {
+  const data = await fetchJSON("/analytics/7day-average");
+  const labels = data.map(d => d.date);
+  const steps = data.map(d => d.steps);
+  const avg = data.map(d => d.avg_7days);
+
+  new Chart(document.getElementById("stepsChart"), {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: "歩数",
+          data: steps,
+          borderColor: "#4ade80",
+          backgroundColor: "transparent",
+          tension: 0.3,
+        },
+        {
+          label: "7日移動平均",
+          data: avg,
+          borderColor: "#60a5fa",
+          backgroundColor: "transparent",
+          borderDash: [5, 5],
+          tension: 0.3,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: "#eee" } } },
+      scales: {
+        x: { ticks: { color: "#aaa" } },
+        y: { ticks: { color: "#aaa" } }
+      }
+    }
+  });
+}
+
+async function renderSleepChart() {
+  const data = await fetchJSON("/health-log");
+  const sorted = data.slice().reverse();
+  const labels = sorted.map(d => d.date);
+  const sleep = sorted.map(d => d.sleep_hours);
+
+  new Chart(document.getElementById("sleepChart"), {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: "睡眠時間 (h)",
+          data: sleep,
+          borderColor: "#f472b6",
+          backgroundColor: "transparent",
+          tension: 0.3,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: "#eee" } } },
+      scales: {
+        x: { ticks: { color: "#aaa" } },
+        y: { ticks: { color: "#aaa" } }
+      }
+    }
+  });
+}
+
+async function renderStreakTable() {
+  const data = await fetchJSON("/analytics/streaks");
+  const tbody = document.querySelector("#streakTable tbody");
+  tbody.innerHTML = "";
+  data.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${row.streak_start}</td><td>${row.streak_end}</td><td>${row.streak_length}日</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+renderStepsChart();
+renderSleepChart();
+renderStreakTable();
+</script>
+
+</body>
+</html>
