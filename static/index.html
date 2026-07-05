@@ -226,12 +226,13 @@
 
 <div class="card">
   <h2>🔥 1万歩ストリーク</h2>
-  <table id="streakTable">
+  <table id="streakTable" style="display:none;">
     <thead>
       <tr><th>開始日</th><th>終了日</th><th>連続日数</th></tr>
     </thead>
     <tbody></tbody>
   </table>
+  <div id="streakCards"></div>
 </div>
 
 <script>
@@ -392,13 +393,29 @@ document.getElementById("nextMonth").addEventListener("click", () => {
 
 async function renderStreakTable() {
   const data = await fetchJSON("/analytics/streaks");
-  const tbody = document.querySelector("#streakTable tbody");
-  tbody.innerHTML = "";
-  data.forEach(row => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${row.streak_start}</td><td>${row.streak_end}</td><td>${row.streak_length}日</td>`;
-    tbody.appendChild(tr);
-  });
+
+  if (isMobile) {
+    const container = document.getElementById("streakCards");
+    container.innerHTML = "";
+    data.forEach(row => {
+      const card = document.createElement("div");
+      card.className = "streak-card";
+      card.innerHTML = `
+        <div class="streak-dates">${row.streak_start}<span class="arrow">→</span>${row.streak_end}</div>
+        <div class="streak-days">${row.streak_length}日</div>
+      `;
+      container.appendChild(card);
+    });
+  } else {
+    document.getElementById("streakTable").style.display = "table";
+    const tbody = document.querySelector("#streakTable tbody");
+    tbody.innerHTML = "";
+    data.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${row.streak_start}</td><td>${row.streak_end}</td><td>${row.streak_length}日</td>`;
+      tbody.appendChild(tr);
+    });
+  }
 }
 
 renderStepsChart();
