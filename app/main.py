@@ -28,10 +28,12 @@ async def startup():
 @app.post("/health-log", response_model=HealthLogOut)
 async def upsert_log(entry: HealthLogIn, db: AsyncSession = Depends(get_db), _: None = Depends(verify_api_key)):
     data = entry.model_dump(exclude_unset=True)
+    if "user_name" not in data:
+        data["user_name"] = entry.user_name
     stmt = insert(HealthLog).values(**data)
-    update_fields = {k: v for k, v in data.items() if k != "date"}
+    update_fields = {k: v for k, v in data.items() if k not in ("date", "user_name")}
     stmt = stmt.on_conflict_do_update(
-        index_elements=["date"],
+        index_elements=["date", "user_name"],
         set_=update_fields
     ).returning(HealthLog)
     result = await db.execute(stmt)
@@ -39,6 +41,9 @@ async def upsert_log(entry: HealthLogIn, db: AsyncSession = Depends(get_db), _: 
     return result.scalar_one()
 
 @app.get("/health-log", response_model=list[HealthLogOut])
-async def list_logs(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(HealthLog).order_by(HealthLog.date.desc()))
+async def list_logs(user_name: str = None, db: AsyncSession = Depends(get_db)):
+    query = select(HealthLog).order_by(HealthLog.date.desc())
+    if user_name:
+        query = query.where(HealthLog.user_name == user_name)
+    result = await db.execute(query)
     return result.scalars().all()
