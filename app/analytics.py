@@ -114,6 +114,9 @@ async def today_ranking(db: AsyncSession = Depends(get_db)):
 
 @router.get("/users")
 async def list_users(db: AsyncSession = Depends(get_db)):
-    query = text("SELECT DISTINCT user_name FROM health_log ORDER BY user_name")
+    query = text("""
+        SELECT DISTINCT user_name FROM health_log
+        ORDER BY CASE WHEN user_name = 'yuta' THEN 0 ELSE 1 END, user_name
+    """)
     result = await db.execute(query)
     return [row[0] for row in result.all()]
