@@ -166,6 +166,89 @@
   .heatmap-legend { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 12px; color: #888; }
   .heatmap-legend .cal-cell { width: 14px; height: 14px; }
 
+  /* ゲーム風ランキング */
+  .rank-game-item {
+    background: #1e1e1e;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid transparent;
+  }
+  .rank-game-item.first {
+    border-color: #facc15;
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.4), inset 0 0 20px rgba(250, 204, 21, 0.05);
+  }
+  .rank-game-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .rank-game-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .rank-game-crown {
+    font-size: 20px;
+    filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.8));
+    animation: crownFloat 2s ease-in-out infinite;
+  }
+  @keyframes crownFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+  .rank-game-steps {
+    font-size: 20px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .rank-game-item.first .rank-game-steps { color: #facc15; }
+  .rank-game-item:not(.first) .rank-game-steps { color: #4ade80; }
+  .rank-game-bar-wrap {
+    background: #0f0f0f;
+    border-radius: 999px;
+    height: 14px;
+    overflow: hidden;
+    position: relative;
+  }
+  .rank-game-bar {
+    height: 100%;
+    border-radius: 999px;
+    width: 0%;
+    transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+  }
+  .rank-game-item.first .rank-game-bar {
+    background: linear-gradient(90deg, #facc15, #fde047);
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+  }
+  .rank-game-item:not(.first) .rank-game-bar {
+    background: linear-gradient(90deg, #16a34a, #4ade80);
+  }
+  .rank-game-bar::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 2s infinite;
+  }
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .rank-diff {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #888;
+    text-align: right;
+  }
+  .rank-diff.behind { color: #f87171; }
+
   /* ストリークカード */
   .streak-card {
     display: flex;
@@ -307,6 +390,19 @@ function switchTab(user, btnEl) {
 }
 
 // ===== 今日のランキング =====
+function animateCount(el, target, duration) {
+  const start = 0;
+  const startTime = performance.now();
+  function tick(now) {
+    const progress = Math.min(1, (now - startTime) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const value = Math.floor(start + (target - start) * eased);
+    el.textContent = value.toLocaleString() + " 歩";
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
 async function renderRanking() {
   const data = await fetchJSON("/analytics/today-ranking");
   const container = document.getElementById("rankingList");
@@ -317,17 +413,40 @@ async function renderRanking() {
     return;
   }
 
-  const medals = ["🥇", "🥈", "🥉"];
+  const topSteps = data[0].steps;
+
   data.forEach((row, i) => {
     const item = document.createElement("div");
-    item.className = "rank-item";
-    const medal = medals[i] || `${row.rank}`;
+    item.className = "rank-game-item" + (i === 0 ? " first" : "");
+    const crown = i === 0 ? '<span class="rank-game-crown">👑</span>' : "";
+    const pct = topSteps > 0 ? Math.max(4, (row.steps / topSteps) * 100) : 0;
+    const diff = i === 0 ? "" :
+      `<div class="rank-diff behind">1位まであと ${(topSteps - row.steps).toLocaleString()} 歩</div>`;
+
     item.innerHTML = `
-      <div class="rank-medal">${medal}</div>
-      <div class="rank-name">${row.user_name}</div>
-      <div class="rank-steps">${row.steps.toLocaleString()} 歩</div>
+      <div class="rank-game-header">
+        <div class="rank-game-name">${crown}${row.user_name}</div>
+        <div class="rank-game-steps" id="steps-${i}">0 歩</div>
+      </div>
+      <div class="rank-game-bar-wrap">
+        <div class="rank-game-bar" id="bar-${i}"></div>
+      </div>
+      ${diff}
     `;
     container.appendChild(item);
+  });
+
+  // アニメーション開始(描画後に少し遅延させて発火)
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      data.forEach((row, i) => {
+        const pct = topSteps > 0 ? Math.max(4, (row.steps / topSteps) * 100) : 0;
+        const barEl = document.getElementById(`bar-${i}`);
+        const stepsEl = document.getElementById(`steps-${i}`);
+        if (barEl) barEl.style.width = pct + "%";
+        if (stepsEl) animateCount(stepsEl, row.steps, 1200);
+      });
+    }, 50);
   });
 }
 
