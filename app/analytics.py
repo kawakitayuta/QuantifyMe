@@ -8,7 +8,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 @router.get("/daily-comparison")
-async def daily_comparison(db: AsyncSession = Depends(get_db)):
+async def daily_comparison(user_name: str = "yuta", db: AsyncSession = Depends(get_db)):
     query = text("""
         SELECT
             date,
@@ -16,14 +16,15 @@ async def daily_comparison(db: AsyncSession = Depends(get_db)):
             LAG(steps) OVER (ORDER BY date) AS previous_day_steps,
             steps - LAG(steps) OVER (ORDER BY date) AS diff
         FROM health_log
+        WHERE user_name = :user_name
         ORDER BY date
     """)
-    result = await db.execute(query)
+    result = await db.execute(query, {"user_name": user_name})
     return result.mappings().all()
 
 
 @router.get("/7day-average")
-async def seven_day_average(db: AsyncSession = Depends(get_db)):
+async def seven_day_average(user_name: str = "yuta", db: AsyncSession = Depends(get_db)):
     query = text("""
         SELECT
             date,
@@ -33,28 +34,30 @@ async def seven_day_average(db: AsyncSession = Depends(get_db)):
                 ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
             ), 0) AS avg_7days
         FROM health_log
+        WHERE user_name = :user_name
         ORDER BY date
     """)
-    result = await db.execute(query)
+    result = await db.execute(query, {"user_name": user_name})
     return result.mappings().all()
 
 
 @router.get("/weekday-average")
-async def weekday_average(db: AsyncSession = Depends(get_db)):
+async def weekday_average(user_name: str = "yuta", db: AsyncSession = Depends(get_db)):
     query = text("""
         SELECT
             TO_CHAR(date, 'Day') AS day_of_week,
             ROUND(AVG(steps), 0) AS avg_steps
         FROM health_log
+        WHERE user_name = :user_name
         GROUP BY TO_CHAR(date, 'Day')
         ORDER BY avg_steps DESC
     """)
-    result = await db.execute(query)
+    result = await db.execute(query, {"user_name": user_name})
     return result.mappings().all()
 
 
 @router.get("/streaks")
-async def streaks(db: AsyncSession = Depends(get_db)):
+async def streaks(user_name: str = "yuta", db: AsyncSession = Depends(get_db)):
     query = text("""
         WITH achieved AS (
             SELECT
@@ -62,7 +65,7 @@ async def streaks(db: AsyncSession = Depends(get_db)):
                 steps,
                 date - (ROW_NUMBER() OVER (ORDER BY date))::int AS grp
             FROM health_log
-            WHERE steps >= 10000
+            WHERE steps >= 10000 AND user_name = :user_name
         )
         SELECT
             grp,
@@ -73,12 +76,12 @@ async def streaks(db: AsyncSession = Depends(get_db)):
         GROUP BY grp
         ORDER BY streak_length DESC
     """)
-    result = await db.execute(query)
+    result = await db.execute(query, {"user_name": user_name})
     return result.mappings().all()
 
 
 @router.get("/monthly-ranking")
-async def monthly_ranking(db: AsyncSession = Depends(get_db)):
+async def monthly_ranking(user_name: str = "yuta", db: AsyncSession = Depends(get_db)):
     query = text("""
         SELECT
             date,
@@ -88,7 +91,29 @@ async def monthly_ranking(db: AsyncSession = Depends(get_db)):
                 ORDER BY steps DESC
             ) AS rank_in_month
         FROM health_log
+        WHERE user_name = :user_name
         ORDER BY date
+    """)
+    result = await db.execute(query, {"user_name": user_name})
+    return result.mappings().all()
+
+@router.get("/today-ranking")
+async def today_ranking(db: AsyncSession = Depends(get_db)):
+    query = text("""
+        SELECT
+            user_name,
+            steps,
+            RANK() OVER (ORDER BY steps DESC) AS rank
+        FROM health_log
+        WHERE date = CURRENT_DATE
+        ORDER BY steps DESC
     """)
     result = await db.execute(query)
     return result.mappings().all()
+
+
+@router.get("/users")
+async def list_users(db: AsyncSession = Depends(get_db)):
+    query = text("SELECT DISTINCT user_name FROM health_log ORDER BY user_name")
+    result = await db.execute(query)
+    return [row[0] for row in result.all()]

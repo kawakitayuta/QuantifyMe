@@ -6,6 +6,7 @@
 <title>QuantifyMe Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
+  * { box-sizing: border-box; }
   body {
     font-family: -apple-system, sans-serif;
     background: #0f0f0f;
@@ -15,13 +16,16 @@
   }
   h1 {
     font-size: 22px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
   .card {
     background: #1a1a1a;
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 24px;
+    max-width: 576px;
+    margin-left: auto;
+    margin-right: auto;
   }
   .card h2 {
     font-size: 16px;
@@ -39,7 +43,59 @@
     border-bottom: 1px solid #333;
   }
 
-  /* カレンダー */
+  /* タブ */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    max-width: 576px;
+    margin: 0 auto 20px auto;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .tab-btn {
+    background: #1a1a1a;
+    color: #888;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tab-btn.active {
+    background: #4ade80;
+    color: #052e16;
+  }
+
+  /* 今日のランキング */
+  .rank-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #262626;
+  }
+  .rank-item:last-child { border-bottom: none; }
+  .rank-medal {
+    font-size: 20px;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .rank-name {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .rank-steps {
+    font-size: 16px;
+    font-weight: 700;
+    color: #4ade80;
+  }
+
+  /* PC用カレンダー */
   .cal-header {
     display: flex;
     align-items: center;
@@ -55,24 +111,13 @@
     font-size: 14px;
     cursor: pointer;
   }
-  .cal-header button:hover {
-    background: #333;
-  }
-  .cal-title {
-    font-size: 15px;
-    font-weight: bold;
-  }
+  .cal-title { font-size: 15px; font-weight: bold; }
   .cal-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 4px;
   }
-  .cal-weekday {
-    text-align: center;
-    font-size: 11px;
-    color: #888;
-    padding-bottom: 4px;
-  }
+  .cal-weekday { text-align: center; font-size: 11px; color: #888; padding-bottom: 4px; }
   .cal-cell {
     height: 64px;
     border-radius: 7px;
@@ -85,115 +130,63 @@
     color: #666;
     position: relative;
   }
-  .cal-cell.empty {
-    background: transparent;
-  }
-  .cal-cell .cal-day {
-    font-size: 13px;
-    margin-bottom: 2px;
-  }
-  .cal-cell .cal-steps {
-    font-size: 11px;
-  }
+  .cal-cell.empty { background: transparent; }
+  .cal-cell .cal-day { font-size: 13px; margin-bottom: 2px; }
+  .cal-cell .cal-steps { font-size: 11px; }
   .cal-cell[data-level="0"] { background: #1e1e1e; color: #555; }
   .cal-cell[data-level="1"] { background: #14532d; color: #d1fae5; }
   .cal-cell[data-level="2"] { background: #16a34a; color: #ecfdf5; }
   .cal-cell[data-level="3"] { background: #4ade80; color: #052e16; }
-  .cal-cell.today {
-    outline: 2px solid #60a5fa;
-  }
-  .heatmap-legend {
+  .cal-cell.today { outline: 2px solid #60a5fa; }
+
+  /* スマホ用リスト */
+  .day-list-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-top: 12px;
-    font-size: 12px;
-    color: #888;
+    padding: 10px 0;
+    border-bottom: 1px solid #262626;
+    gap: 12px;
   }
-  .heatmap-legend .cal-cell {
-    width: 14px;
-    height: 14px;
-    aspect-ratio: unset;
+  .day-list-item:last-child { border-bottom: none; }
+  .day-list-date { width: 64px; font-size: 13px; color: #aaa; flex-shrink: 0; }
+  .day-list-date .dow { font-size: 11px; color: #666; }
+  .day-list-bar-wrap {
+    flex: 1;
+    background: #262626;
+    border-radius: 6px;
+    height: 20px;
+    overflow: hidden;
+    position: relative;
   }
+  .day-list-bar { height: 100%; border-radius: 6px; background: linear-gradient(90deg, #16a34a, #4ade80); }
+  .day-list-steps { width: 68px; text-align: right; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+  .day-list-item.today .day-list-date { color: #60a5fa; font-weight: 700; }
+  .day-list-item.achieved .day-list-steps { color: #4ade80; }
 
-  @media (max-width: 600px) {
-    body {
-      padding: 12px;
-    }
-    h1 {
-      font-size: 18px;
-    }
-    .card {
-      padding: 12px;
-      max-width: 100% !important;
-    }
-    .cal-cell {
-      height: 40px !important;
-      font-size: 10px !important;
-      border-radius: 5px;
-    }
-    .cal-cell .cal-day {
-      font-size: 10px !important;
-      margin-bottom: 1px;
-    }
-    .cal-cell .cal-steps {
-      font-size: 8px !important;
-    }
-    .cal-header button {
-      padding: 5px 8px;
-      font-size: 12px;
-    }
-    .cal-title {
-      font-size: 13px;
-    }
-    table {
-      font-size: 12px;
-    }
-  }
+  .heatmap-legend { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 12px; color: #888; }
+  .heatmap-legend .cal-cell { width: 14px; height: 14px; }
 
-  @media (max-width: 600px) {
-    body {
-      padding: 12px;
-    }
-    h1 {
-      font-size: 18px;
-    }
-    .card {
-      padding: 10px;
-      max-width: 100% !important;
-      margin-left: 0 !important;
-      margin-right: 0 !important;
-    }
-    .cal-grid {
-      gap: 3px;
-    }
-    .cal-cell {
-      height: auto !important;
-      aspect-ratio: 1 !important;
-      font-size: 12px !important;
-      border-radius: 6px;
-    }
-    .cal-cell .cal-day {
-      font-size: 13px !important;
-      font-weight: 600;
-      margin-bottom: 0;
-    }
-    .cal-cell .cal-steps {
-      font-size: 8px !important;
-    }
-    .cal-weekday {
-      font-size: 10px;
-    }
-    .cal-header button {
-      padding: 6px 10px;
-      font-size: 12px;
-    }
-    .cal-title {
-      font-size: 14px;
-    }
-    table {
-      font-size: 12px;
-    }
+  /* ストリークカード */
+  .streak-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1e1e1e;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .streak-card:last-child { margin-bottom: 0; }
+  .streak-card .streak-dates { font-size: 13px; color: #ddd; }
+  .streak-card .streak-dates .arrow { color: #666; margin: 0 6px; }
+  .streak-card .streak-days {
+    font-size: 15px;
+    font-weight: 700;
+    color: #4ade80;
+    background: #14532d;
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
   }
 </style>
 </head>
@@ -201,88 +194,72 @@
 
 <h1>📊 QuantifyMe Dashboard</h1>
 
-<div class="card">
-  <h2>📈 歩数推移 & 7日移動平均</h2>
-  <canvas id="stepsChart" height="100"></canvas>
+<div class="tabs" id="tabs"></div>
+
+<!-- 今日のランキング(全体タブでのみ表示) -->
+<div class="card" id="rankingCard" style="display:none;">
+  <h2>🏆 今日のランキング</h2>
+  <div id="rankingList"></div>
 </div>
 
-<div class="card" style="max-width: 576px; margin-left: auto; margin-right: auto;">
-  <h2>🔥 歩数カレンダー</h2>
-  <div class="cal-header">
-    <button id="prevMonth">← 前の月</button>
-    <div class="cal-title" id="calTitle"></div>
-    <button id="nextMonth">次の月 →</button>
+<!-- 個人用セクション -->
+<div id="personalSections">
+  <div class="card">
+    <h2>📈 歩数推移 & 7日移動平均</h2>
+    <canvas id="stepsChart" height="220"></canvas>
   </div>
-  <div class="cal-grid" id="calGrid"></div>
-  <div class="heatmap-legend">
-    <span>少ない</span>
-    <div class="cal-cell" data-level="0"></div>
-    <div class="cal-cell" data-level="1"></div>
-    <div class="cal-cell" data-level="2"></div>
-    <div class="cal-cell" data-level="3"></div>
-    <span>多い</span>
-  </div>
-</div>
 
-<div class="card">
-  <h2>🔥 1万歩ストリーク</h2>
-  <table id="streakTable" style="display:none;">
-    <thead>
-      <tr><th>開始日</th><th>終了日</th><th>連続日数</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <div id="streakCards"></div>
+  <div class="card" id="pcCalendarCard">
+    <h2>🔥 歩数カレンダー</h2>
+    <div class="cal-header">
+      <button id="prevMonth">← 前の月</button>
+      <div class="cal-title" id="calTitle"></div>
+      <button id="nextMonth">次の月 →</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="heatmap-legend">
+      <span>少ない</span>
+      <div class="cal-cell" data-level="0"></div>
+      <div class="cal-cell" data-level="1"></div>
+      <div class="cal-cell" data-level="2"></div>
+      <div class="cal-cell" data-level="3"></div>
+      <span>多い</span>
+    </div>
+  </div>
+
+  <div class="card" id="mobileListCard" style="display:none;">
+    <h2>🔥 直近14日間</h2>
+    <div id="dayList"></div>
+  </div>
+
+  <div class="card">
+    <h2>🔥 1万歩ストリーク</h2>
+    <table id="streakTable" style="display:none;">
+      <thead><tr><th>開始日</th><th>終了日</th><th>連続日数</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="streakCards"></div>
+  </div>
 </div>
 
 <script>
 const API_BASE = "";
+const isMobile = window.innerWidth <= 600;
 let allStepsData = {};
 let currentYear = new Date().getFullYear();
-let currentMonth = new Date().getMonth(); // 0-indexed
+let currentMonth = new Date().getMonth();
+let currentUser = "all";
+let chartInstance = null;
 
 async function fetchJSON(path) {
   const res = await fetch(API_BASE + path);
   return res.json();
 }
 
-async function renderStepsChart() {
-  const data = await fetchJSON("/analytics/7day-average");
-  const labels = data.map(d => d.date);
-  const steps = data.map(d => d.steps);
-  const avg = data.map(d => d.avg_7days);
-
-  new Chart(document.getElementById("stepsChart"), {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: "歩数",
-          data: steps,
-          borderColor: "#4ade80",
-          backgroundColor: "transparent",
-          tension: 0.3,
-        },
-        {
-          label: "7日移動平均",
-          data: avg,
-          borderColor: "#60a5fa",
-          backgroundColor: "transparent",
-          borderDash: [5, 5],
-          tension: 0.3,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: "#eee" } } },
-      scales: {
-        x: { ticks: { color: "#aaa" } },
-        y: { ticks: { color: "#aaa" } }
-      }
-    }
-  });
+function formatDateJST(y, m, d) {
+  const mm = String(m + 1).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
 }
 
 function stepLevel(steps) {
@@ -292,36 +269,135 @@ function stepLevel(steps) {
   return 3;
 }
 
-function formatDateJST(y, m, d) {
-  const mm = String(m + 1).padStart(2, "0");
-  const dd = String(d).padStart(2, "0");
-  return `${y}-${mm}-${dd}`;
+// ===== タブ生成 =====
+async function initTabs() {
+  const users = await fetchJSON("/analytics/users");
+  const tabsContainer = document.getElementById("tabs");
+  tabsContainer.innerHTML = "";
+
+  const allBtn = document.createElement("button");
+  allBtn.className = "tab-btn active";
+  allBtn.textContent = "🏆 全体";
+  allBtn.onclick = () => switchTab("all", allBtn);
+  tabsContainer.appendChild(allBtn);
+
+  users.forEach(u => {
+    const btn = document.createElement("button");
+    btn.className = "tab-btn";
+    btn.textContent = u;
+    btn.onclick = () => switchTab(u, btn);
+    tabsContainer.appendChild(btn);
+  });
+}
+
+function switchTab(user, btnEl) {
+  currentUser = user;
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  btnEl.classList.add("active");
+
+  if (user === "all") {
+    document.getElementById("rankingCard").style.display = "block";
+    document.getElementById("personalSections").style.display = "none";
+    renderRanking();
+  } else {
+    document.getElementById("rankingCard").style.display = "none";
+    document.getElementById("personalSections").style.display = "block";
+    loadPersonalData(user);
+  }
+}
+
+// ===== 今日のランキング =====
+async function renderRanking() {
+  const data = await fetchJSON("/analytics/today-ranking");
+  const container = document.getElementById("rankingList");
+  container.innerHTML = "";
+
+  if (data.length === 0) {
+    container.innerHTML = '<div style="color:#666;font-size:13px;">今日はまだ誰も記録してないよ</div>';
+    return;
+  }
+
+  const medals = ["🥇", "🥈", "🥉"];
+  data.forEach((row, i) => {
+    const item = document.createElement("div");
+    item.className = "rank-item";
+    const medal = medals[i] || `${row.rank}`;
+    item.innerHTML = `
+      <div class="rank-medal">${medal}</div>
+      <div class="rank-name">${row.user_name}</div>
+      <div class="rank-steps">${row.steps.toLocaleString()} 歩</div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+// ===== 個人データ読み込み =====
+async function loadPersonalData(user) {
+  await renderStepsChart(user);
+  await loadStepsData(user);
+  if (isMobile) {
+    document.getElementById("pcCalendarCard").style.display = "none";
+    document.getElementById("mobileListCard").style.display = "block";
+    renderDayList();
+  } else {
+    document.getElementById("pcCalendarCard").style.display = "block";
+    document.getElementById("mobileListCard").style.display = "none";
+    renderCalendar();
+  }
+  await renderStreakTable(user);
+}
+
+async function renderStepsChart(user) {
+  let data = await fetchJSON(`/analytics/7day-average?user_name=${encodeURIComponent(user)}`);
+  if (isMobile) data = data.slice(-14);
+
+  const labels = data.map(d => {
+    if (!isMobile) return d.date;
+    const parts = d.date.split("-");
+    return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+  });
+  const steps = data.map(d => d.steps);
+  const avg = data.map(d => d.avg_7days);
+
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(document.getElementById("stepsChart"), {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [
+        { label: "歩数", data: steps, borderColor: "#4ade80", backgroundColor: "transparent", tension: 0.3, pointRadius: isMobile ? 3 : 2 },
+        { label: "7日移動平均", data: avg, borderColor: "#60a5fa", backgroundColor: "transparent", borderDash: [5, 5], tension: 0.3, pointRadius: 0 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: !isMobile,
+      plugins: { legend: { labels: { color: "#eee", font: { size: 12 } } } },
+      scales: {
+        x: { ticks: { color: "#aaa", font: { size: 11 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: isMobile ? 7 : 20 } },
+        y: { ticks: { color: "#aaa", font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+async function loadStepsData(user) {
+  const data = await fetchJSON(`/health-log?user_name=${encodeURIComponent(user)}`);
+  allStepsData = {};
+  data.forEach(d => { allStepsData[d.date] = d.steps; });
 }
 
 function renderCalendar() {
-  const isMobile = window.innerWidth <= 600;
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
   const grid = document.getElementById("calGrid");
   const title = document.getElementById("calTitle");
   title.textContent = `${currentYear}年 ${currentMonth + 1}月`;
-
-  // スマホの場合、画面幅からセルサイズを直接計算
-  let cellSize = null;
-  if (isMobile) {
-    const cardPadding = 20; // card の左右パディング合計
-    const gap = 3;
-    const usableWidth = window.innerWidth - cardPadding - (gap * 6);
-    cellSize = Math.floor(usableWidth / 7);
-  }
 
   grid.innerHTML = "";
   weekdays.forEach(w => {
     const el = document.createElement("div");
     el.className = "cal-weekday";
     el.textContent = w;
-    if (isMobile) {
-      el.style.fontSize = "11px";
-    }
     grid.appendChild(el);
   });
 
@@ -329,15 +405,11 @@ function renderCalendar() {
   const lastDay = new Date(currentYear, currentMonth + 1, 0);
   const startWeekday = firstDay.getDay();
   const daysInMonth = lastDay.getDate();
-
   const todayStr = formatDateJST(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
 
   for (let i = 0; i < startWeekday; i++) {
     const el = document.createElement("div");
     el.className = "cal-cell empty";
-    if (isMobile) {
-      el.style.height = cellSize + "px";
-    }
     grid.appendChild(el);
   }
 
@@ -345,54 +417,69 @@ function renderCalendar() {
     const dateStr = formatDateJST(currentYear, currentMonth, day);
     const steps = allStepsData[dateStr] || 0;
     const level = stepLevel(steps);
-
     const cell = document.createElement("div");
     cell.className = "cal-cell";
     if (dateStr === todayStr) cell.classList.add("today");
     cell.setAttribute("data-level", level);
-
-    if (isMobile) {
-      cell.style.height = cellSize + "px";
-      cell.style.fontSize = Math.max(10, Math.floor(cellSize * 0.28)) + "px";
-      const dayFontSize = Math.max(11, Math.floor(cellSize * 0.32));
-      const stepsFontSize = Math.max(7, Math.floor(cellSize * 0.18));
-      cell.innerHTML = `<div class="cal-day" style="font-size:${dayFontSize}px;">${day}</div>` +
-        (steps > 0 ? `<div class="cal-steps" style="font-size:${stepsFontSize}px;">${(steps / 1000).toFixed(1)}k</div>` : "");
-    } else {
-      cell.innerHTML = `<div class="cal-day">${day}</div>` +
-        (steps > 0 ? `<div class="cal-steps">${(steps / 1000).toFixed(1)}k</div>` : "");
-    }
+    cell.innerHTML = `<div class="cal-day">${day}</div>` +
+      (steps > 0 ? `<div class="cal-steps">${(steps / 1000).toFixed(1)}k</div>` : "");
     grid.appendChild(cell);
   }
 }
 
-async function renderCalendarSection() {
-  const data = await fetchJSON("/health-log");
-  allStepsData = {};
-  data.forEach(d => { allStepsData[d.date] = d.steps; });
-  renderCalendar();
+function renderDayList() {
+  const container = document.getElementById("dayList");
+  container.innerHTML = "";
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+  const todayStr = formatDateJST(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+
+  const today = new Date();
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+
+  const maxSteps = Math.max(10000, ...days.map(d => allStepsData[formatDateJST(d.getFullYear(), d.getMonth(), d.getDate())] || 0));
+
+  days.forEach(d => {
+    const dateStr = formatDateJST(d.getFullYear(), d.getMonth(), d.getDate());
+    const steps = allStepsData[dateStr] || 0;
+    const pct = Math.min(100, (steps / maxSteps) * 100);
+
+    const item = document.createElement("div");
+    item.className = "day-list-item";
+    if (dateStr === todayStr) item.classList.add("today");
+    if (steps >= 10000) item.classList.add("achieved");
+
+    const mm = d.getMonth() + 1;
+    const dd = d.getDate();
+    const dow = weekdays[d.getDay()];
+
+    item.innerHTML = `
+      <div class="day-list-date">${mm}/${dd}<div class="dow">${dow}</div></div>
+      <div class="day-list-bar-wrap"><div class="day-list-bar" style="width:${pct}%"></div></div>
+      <div class="day-list-steps">${steps > 0 ? steps.toLocaleString() : "-"}</div>
+    `;
+    container.appendChild(item);
+  });
 }
 
 document.getElementById("prevMonth").addEventListener("click", () => {
   currentMonth--;
-  if (currentMonth < 0) {
-    currentMonth = 11;
-    currentYear--;
-  }
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
   renderCalendar();
 });
 
 document.getElementById("nextMonth").addEventListener("click", () => {
   currentMonth++;
-  if (currentMonth > 11) {
-    currentMonth = 0;
-    currentYear++;
-  }
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
   renderCalendar();
 });
 
-async function renderStreakTable() {
-  const data = await fetchJSON("/analytics/streaks");
+async function renderStreakTable(user) {
+  const data = await fetchJSON(`/analytics/streaks?user_name=${encodeURIComponent(user)}`);
 
   if (isMobile) {
     const container = document.getElementById("streakCards");
@@ -418,13 +505,14 @@ async function renderStreakTable() {
   }
 }
 
-renderStepsChart();
-renderCalendarSection();
-renderStreakTable();
+// ===== 初期化: 全体タブ(ランキング)から開始 =====
+async function init() {
+  document.getElementById("personalSections").style.display = "none";
+  await initTabs();
+  await renderRanking();
+}
 
-window.addEventListener("resize", () => {
-  renderCalendar();
-});
+init();
 </script>
 
 </body>
